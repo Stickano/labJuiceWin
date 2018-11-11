@@ -167,7 +167,7 @@ namespace labJuice
                     //}
 
                     double time = (double)j / numSample;
-                    chart1.Series["Second Harmonic"].Points.AddXY(time, voltages[0, 2]);
+                    chart3.Series["Second Harmonic"].Points.AddXY(time, voltages[0, 2]);
                 }
 
                 error = LabJack.AIStreamRead(ljID, numScans, timeout, voltages, stateIOout, ref reserved, ref ljb, ref ov);
@@ -182,8 +182,8 @@ namespace labJuice
                 richTextBox3.AppendText("LabJack Scan Backlog = " + ljb + "\r\n");
                 i++;
 
-                chart1.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
-                chart1.ChartAreas["ChartArea1"].AxisX.RoundAxisValues();
+                chart3.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
+                chart3.ChartAreas["ChartArea1"].AxisX.RoundAxisValues();
 
             }
 
@@ -310,28 +310,28 @@ namespace labJuice
                 sample[i] = new Complex(v[i, 0], 2);
             }
 
-            chart1.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
-            chart1.ChartAreas["ChartArea1"].AxisX.RoundAxisValues();
+            chart3.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
+            chart3.ChartAreas["ChartArea1"].AxisX.RoundAxisValues();
 
             // 400 = samples to chart
             for (int i = 0; i < 400; i++)
             {
                 double time = (double)i / numSample;
-                chart1.Series["Waveform"].Points.AddXY(time, v[i, 0]);
+                chart3.Series["Waveform"].Points.AddXY(time, v[i, 0]);
             }
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
             richTextBox3.AppendText("AIBurst \r\n");
-            chart1.Series["Waveform"].Points.Clear();
-            chart1.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
+            chart3.Series["Waveform"].Points.Clear();
+            chart3.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
 
             float[,] v = AIBurst(numSample);
             for (int i = 0; i < 400; i++)
             {
                 double time = (double)i / numSample;
-                chart1.Series["Waveform"].Points.AddXY(time, v[i, 0]);
+                chart3.Series["Waveform"].Points.AddXY(time, v[i, 0]);
             }
         }
 

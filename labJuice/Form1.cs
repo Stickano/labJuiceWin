@@ -129,12 +129,12 @@ namespace labJuice
         //---------------------------------------------------------------------
         // AIStream
         //
-        public static void AIStream()
+        public void AIStream()
         {
 
             int error;
             int ljID = -1;
-            int demo = 0, numChannels = 4, disableCal = 0;
+            int demo = 1, numChannels = 4, disableCal = 0;
             int[] channels = { 0, 1, 2, 3 };
             int[] gains = { 0, 0, 0, 0 };
             float sr = 250.0F;
@@ -151,29 +151,40 @@ namespace labJuice
                 gains, ref sr, disableCal, 0, 0);
             if (error != 0)
             {
-                Console.WriteLine("AIStreamStart Error: {0}", error);
+                richTextBox3.AppendText("AIStreamStart Error: " + error + "\r\n");
             }
 
             int i = 0;
             while ((error == 0) && (i < numIts))
             {
-                for (int j = 0; j < 4096; j++)
+                for (int j = 0; j < 400; j++)
                 {
                     stateIOout[j] = 0;
-                    for (int k = 0; k < 4; k++)
-                    {
-                        voltages[j, k] = 0;
-                    }
+                    voltages[j, 3] = 0;
+
+                    //for (int k = 0; k < 4; k++)
+                    //{
+                    //}
+
+                    double time = (double)j / numSample;
+                    chart1.Series["Second Harmonic"].Points.AddXY(time, voltages[0, 2]);
                 }
 
                 error = LabJack.AIStreamRead(ljID, numScans, timeout, voltages, stateIOout, ref reserved, ref ljb, ref ov);
                 if (error != 0)
                 {
-                    Console.WriteLine("AIStreamRead Error:", error);
+                    StringBuilder sb = new StringBuilder();
+                    LabJack.GetErrorString(error, sb);
+                    richTextBox3.AppendText("AIStreamRead Error: " + sb + "\r\n");
                 }
-                Console.WriteLine("1st Scan:  V1={0}, V2={1}, V3={2}, V4={3}", voltages[0, 0], voltages[0, 1], voltages[0, 2], voltages[0, 3]);
-                Console.WriteLine("LabJack Scan Backlog = {0}", ljb);
+                //richTextBox3.AppendText("1st Scan:  V1="+ voltages[0, 0]+", V2="+ voltages[0, 1]+", V3="+ voltages[0, 2]+", V4="+ voltages[0, 3]+"\r\n");
+                richTextBox3.AppendText("1st Scan:  V3=" + voltages[0, 2] + "\r\n");
+                richTextBox3.AppendText("LabJack Scan Backlog = " + ljb + "\r\n");
                 i++;
+
+                chart1.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
+                chart1.ChartAreas["ChartArea1"].AxisX.RoundAxisValues();
+
             }
 
             LabJack.AIStreamClear(ljID);
@@ -201,14 +212,25 @@ namespace labJuice
 
         public void plotWaveform(int secondHarm, int thirdHarm, double secondPH, double thirdPH)
         {
-            chart1.Series["Waveform"].Points.Clear();
-            chart1.Series["Second Harmonic"].Points.Clear();
-            chart1.Series["Third Harmonic"].Points.Clear();
+
+            chart3.Series["Waveform"].Points.Clear();
+            chart3.Series["Second Harmonic"].Points.Clear();
+            chart3.Series["Third Harmonic"].Points.Clear();
+
+            chart3.Series["Waveform"].LegendText = "Waveform";
+            chart3.Series["Waveform"].ChartType = SeriesChartType.Line;
+
+            chart3.ChartAreas["ChartArea1"].AxisX.TitleFont = new Font("Arial", 14f);
+            chart3.ChartAreas["ChartArea1"].AxisX.Title = "Seconds";
+
+            int fundamentalHz = Convert.ToInt32(numericUpDown3.Value);
+            int secondHz = Convert.ToInt32(numericUpDown1.Value);
+            int thirdHz = Convert.ToInt32(numericUpDown2.Value);
 
             // Fundamental, 2nd & 3rd harmonic waveforms
-            double[] fundamental = Generate.Sinusoidal(numSample, sampleRate, 60, 10.0);
-            double[] second = Generate.Sinusoidal(numSample, sampleRate, 120, secondHarm, 0.0, secondPH);
-            double[] third = Generate.Sinusoidal(numSample, sampleRate, 180, thirdHarm, 0.0, thirdPH);
+            double[] fundamental = Generate.Sinusoidal(numSample, sampleRate, fundamentalHz, 10.0);
+            double[] second = Generate.Sinusoidal(numSample, sampleRate, secondHz, secondHarm, 0.0, secondPH);
+            double[] third = Generate.Sinusoidal(numSample, sampleRate, thirdHz, thirdHarm, 0.0, thirdPH);
 
             // Add waveforms to get composite waveforms
             for (int i = 0; i < numSample; i++)
@@ -221,20 +243,14 @@ namespace labJuice
             {
                 double time = ((i + 1.0) / numSample) / 2;
 
-                chart1.Series["Waveform"].LegendText = "Waveform";
-                chart1.Series["Waveform"].ChartType = SeriesChartType.Line;
-
-                chart1.ChartAreas["ChartArea1"].AxisX.TitleFont = new Font("Arial", 14f);
-                chart1.ChartAreas["ChartArea1"].AxisX.Title = "Seconds";
-
                 // Add second & third harmonic if checked
-                //if (checkBox1.Checked)
-                //    chart1.Series["Second Harmonic"].Points.AddXY(time, second[i]);
-                //if (checkBox2.Checked)
-                //    chart1.Series["Third Harmonic"].Points.AddXY(time, third[i]);
+                if (checkBox2.Checked)
+                    chart3.Series["Second Harmonic"].Points.AddXY(time, second[i]);
+                if (checkBox3.Checked)
+                    chart3.Series["Third Harmonic"].Points.AddXY(time, third[i]);
 
                 // Add Waveform
-                chart1.Series["Waveform"].Points.AddXY(time, sample[i].Real);
+                chart3.Series["Waveform"].Points.AddXY(time, sample[i].Real);
             }
         }
 
@@ -272,24 +288,26 @@ namespace labJuice
             int[] idList = GetAllLabJacks();
             if (idList.Length == 0)
             {
-                richTextBox1.AppendText("No LabJack device found! \r\n");
+                richTextBox3.AppendText("No LabJack device found! \r\n");
                 return;
             }
 
             //SetAnalogOutput(0, 5.0f);
-            //AIStream();
+            //Task.Factory.StartNew(() => AIStream());
+            AIStream();
+            richTextBox3.AppendText("Device voltage: " + ReadAnalogInput(2) + "\r\n");
 
             foreach (int id in idList)
             {
-                richTextBox1.AppendText("Connected with LabJack using ID: " + id + "\r\n");
+                richTextBox3.AppendText("Connected with LabJack using ID: " + id + "\r\n");
             }
 
             // AIBurst
-            richTextBox1.AppendText("AIBurst scans: " + numSample + "\r\n");
+            richTextBox3.AppendText("AIBurst scans: " + numSample + "\r\n");
             float[,] v = AIBurst(numSample);
             for (int i = 0; i < numSample; i++)
             {
-                sample[i] = new Complex(v[i,0], 0);
+                sample[i] = new Complex(v[i, 0], 2);
             }
 
             chart1.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
@@ -298,14 +316,14 @@ namespace labJuice
             // 400 = samples to chart
             for (int i = 0; i < 400; i++)
             {
-                double time = (double) i / numSample;
+                double time = (double)i / numSample;
                 chart1.Series["Waveform"].Points.AddXY(time, v[i, 0]);
             }
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            richTextBox1.AppendText("AIBurst \r\n");
+            richTextBox3.AppendText("AIBurst \r\n");
             chart1.Series["Waveform"].Points.Clear();
             chart1.ChartAreas["ChartArea1"].AxisX.Minimum = 0;
 
@@ -334,8 +352,8 @@ namespace labJuice
             {
                 // Get magnitude of each FFT sample
                 // abs[sqrt(r^2 + i^2)]
-                magnitude = (2 / numSample) * (Math.Abs(Math.Sqrt(Math.Pow(sample[i].Real, 2) + Math.Pow(sample[i].Imaginary, 2))));
-
+                magnitude = (2.0 / numSample) * (Math.Abs(Math.Sqrt(Math.Pow(sample[i].Real, 2) + Math.Pow(sample[i].Imaginary, 2))));
+                
                 // hz by each sample
                 double hzPerSample = sampleRate / numSample;
 
@@ -343,40 +361,111 @@ namespace labJuice
             }
         }
 
-        //private void trackBar1_Scroll(object sender, EventArgs e)
-        //{
-        //    trkPhSecond.Enabled = true;
-        //    magSecond = trkPhSecond.Value;
-        //    lblMagSecond.Text = magSecond.ToString("F0");
-        //    plotWaveform(magSecond, magThird, PHSecond, PHThird);
-        //    plotFFT();
-        //}
+        #region Demo Tools
 
-        //private void trackBar2_Scroll(object sender, EventArgs e)
-        //{
-        //    trkPhThird.Enabled = true;
-        //    magThird = trkPhThird.Value;
-        //    lblMagThird.Text = magThird.ToString("F0");
-        //    plotWaveform(magSecond, magThird, PHSecond, PHThird);
-        //    plotFFT();
-        //}
+        /// <summary>
+        /// Clear the upper chart
+        /// </summary>
+        private void clearChar3()
+        {
+            chart3.Series["Waveform"].Points.Clear();
+            chart3.Series["Second Harmonic"].Points.Clear();
+            chart3.Series["Third Harmonic"].Points.Clear();
+        }
 
-        //private void trackBar3_Scroll(object sender, EventArgs e)
-        //{
-        //    PHSecond = 2 * Math.PI * (trkPhSecond.Value / (double) trkPhSecond.Maximum);
-        //    double angle = PHSecond * 360 / (2 * Math.PI);
-        //    lblPhSecond.Text = angle.ToString("F1");
-        //    plotWaveform(magSecond, magThird, PHSecond, PHThird);
-        //    plotFFT();
-        //}
+        /// <summary>
+        /// Enable demo tools
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox1.Checked)
+                plotWaveform(0, 0, 0, 0);
+            else
+                clearChar3();
+        }
 
-        //private void trackBar4_Scroll(object sender, EventArgs e)
-        //{
-        //    PHThird = 2 * Math.PI * (trkPhThird.Value / (double)trkPhThird.Maximum);
-        //    double angle = PHThird * 360 / (2 * Math.PI);
-        //    lblPhThird.Text = angle.ToString("F1");
-        //    plotWaveform(magSecond, magThird, PHSecond, PHThird);
-        //    plotFFT();
-        //}
+        /// <summary>
+        /// Magnitude for second harmonic
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void trackBar1_Scroll(object sender, EventArgs e)
+        {
+            magSecond = trackBar1.Value;
+            textBox1.Text = trackBar1.Value.ToString();
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+        }
+
+        /// <summary>
+        /// Enable plot of second harmonic (View in chart)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+
+        }
+
+        /// <summary>
+        /// Enable plot of third harmonic (view in chart)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void checkBox3_CheckedChanged(object sender, EventArgs e)
+        {
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+
+        }
+
+        /// <summary>
+        /// Waveform Hz
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void numericUpDown3_ValueChanged(object sender, EventArgs e)
+        {
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+
+        }
+
+        /// <summary>
+        /// Magnitude for third harmonic
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void trackBar2_Scroll(object sender, EventArgs e)
+        {
+            magThird = trackBar2.Value;
+            textBox2.Text = trackBar2.Value.ToString();
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+        }
+
+        /// <summary>
+        /// Hz for second harmonic
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+
+        }
+
+        /// <summary>
+        /// Hz for third harmonic
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            plotWaveform(magSecond, magThird, PHSecond, PHThird);
+
+        }
+
+        #endregion
+        
     }
 }
